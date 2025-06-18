@@ -1,6 +1,3 @@
-Hier ist dein überarbeitetes und stilistisch verbesserter **README-Text** auf Englisch, formatiert als Fließtext – alle Informationen und dein Stil wurden beibehalten, aber sprachlich klarer und professioneller ausformuliert:
-
----
 
 # Synthetic Grid Benchmark Tool
 
