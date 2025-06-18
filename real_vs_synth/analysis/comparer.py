@@ -1,4 +1,6 @@
 import pandas as pd
+import json
+import os
 from real_vs_synth.metrics.topological_characteristics import (
     compute_node_degree_metrics,
     compute_clustering_coefficient,
@@ -6,71 +8,94 @@ from real_vs_synth.metrics.topological_characteristics import (
     compute_graph_diameter,
     compute_betweenness_centrality
 )
-
 from real_vs_synth.metrics.system_characteristics import compute_system_metrics
-from real_vs_synth.viz.plt_comparison import plot_topological_comparison, plot_system_metrics
+from real_vs_synth.viz.plt_comparison import (
+    plot_topological_comparison,
+    plot_system_metrics
+)
 
 
 class Comparer:
 
     def compare(self, real_nets: dict, synth_nets: dict) -> pd.DataFrame:
         rows = []
+        distributions = {}
+
         for level in ['MV', 'LV']:
             real_list = real_nets.get(level, [])
             synth_list = synth_nets.get(level, [])
             if not real_list or not synth_list:
                 continue
 
-            # Knotengrad (Real & Synth)
-            real_degs = [compute_node_degree_metrics(n)[0] for n in real_list]
-            real_mean_deg = sum(real_degs) / len(real_degs)
-            synth_degs = [compute_node_degree_metrics(n)[0] for n in synth_list]
-            synth_mean_deg = sum(synth_degs) / len(synth_degs)
+            # Initialisiere Verteilungscontainer
+            distributions[level] = {
+                'real': {'deg': [], 'cc': [], 'cpl': [], 'bw': []},
+                'synth': {'deg': [], 'cc': [], 'cpl': [], 'bw': []}
+            }
 
-            # Clustering Coeff (Real & Synth)
-            real_ccs = [compute_clustering_coefficient(n)[0] for n in real_list]
-            real_mean_cc = sum(real_ccs) / len(real_ccs)
-            synth_ccs = [compute_clustering_coefficient(n)[0] for n in synth_list]
-            synth_mean_cc = sum(synth_ccs) / len(synth_ccs)
+            # Metriken berechnen
+            real_deg = [compute_node_degree_metrics(n) for n in real_list]
+            synth_deg = [compute_node_degree_metrics(n) for n in synth_list]
+            real_cc = [compute_clustering_coefficient(n) for n in real_list]
+            synth_cc = [compute_clustering_coefficient(n) for n in synth_list]
+            real_cpl = [compute_characteristic_path_length(n) for n in real_list]
+            synth_cpl = [compute_characteristic_path_length(n) for n in synth_list]
+            real_diams = [compute_graph_diameter(n)[0] for n in real_list]
+            synth_diams = [compute_graph_diameter(n)[0] for n in synth_list]
+            real_bw = [compute_betweenness_centrality(n) for n in real_list]
+            synth_bw = [compute_betweenness_centrality(n) for n in synth_list]
 
-            # Characteristic Path Length (Real & Synth)
-            real_cpls = [compute_characteristic_path_length(n)[0] for n in real_list]
-            real_mean_cpl = sum(real_cpls) / len(real_cpls)
-            synth_cpls = [compute_characteristic_path_length(n)[0] for n in synth_list]
-            synth_mean_cpl = sum(synth_cpls) / len(synth_cpls)
+            # Verteilungen extrahieren
+            for d in real_deg: distributions[level]['real']['deg'].extend(d[2])
+            for d in synth_deg: distributions[level]['synth']['deg'].extend(d[2])
+            for d in real_cc: distributions[level]['real']['cc'].extend(d[2])
+            for d in synth_cc: distributions[level]['synth']['cc'].extend(d[2])
+            for d in real_cpl: distributions[level]['real']['cpl'].extend(d[2])
+            for d in synth_cpl: distributions[level]['synth']['cpl'].extend(d[2])
+            for d in real_bw: distributions[level]['real']['bw'].extend(d[2])
+            for d in synth_bw: distributions[level]['synth']['bw'].extend(d[2])
 
-            # Graph Diameter (Real & Synth)
-            real_diams = [compute_graph_diameter(n) for n in real_list]
-            real_diameter = sum(real_diams) / len(real_diams)
-            synth_diams = [compute_graph_diameter(n) for n in synth_list]
-            synth_diameter = sum(synth_diams) / len(synth_diams)
-
-            # Betweenness Centrality (Real & Synth)
-            real_bws = [compute_betweenness_centrality(n)[0] for n in real_list]
-            real_mean_bw = sum(real_bws) / len(real_bws)
-            synth_bws = [compute_betweenness_centrality(n)[0] for n in synth_list]
-            synth_mean_bw = sum(synth_bws) / len(synth_bws)
-
-            rows.append({
+            # Zeile für DataFrame
+            row = {
                 'level': level,
-                'real_mean_deg': real_mean_deg,
-                'synth_mean_deg': synth_mean_deg,
-                'deg_diff': real_mean_deg - synth_mean_deg,
-                'real_mean_cc': real_mean_cc,
-                'synth_mean_cc': synth_mean_cc,
-                'cc_diff': real_mean_cc - synth_mean_cc,
-                'real_mean_cpl': real_mean_cpl,
-                'synth_mean_cpl': synth_mean_cpl,
-                'cpl_diff': real_mean_cpl - synth_mean_cpl,
-                'real_diameter': real_diameter,
-                'synth_diameter': synth_diameter,
-                'diam_diff': real_diameter - synth_diameter,
-                'real_mean_bw': real_mean_bw,
-                'synth_mean_bw': synth_mean_bw,
-                'bw_diff': real_mean_bw - synth_mean_bw
-            })
+                'real_mean_deg': sum(d[0] for d in real_deg) / len(real_deg),
+                'synth_mean_deg': sum(d[0] for d in synth_deg) / len(synth_deg),
+                'deg_diff': (sum(d[0] for d in real_deg) - sum(d[0] for d in synth_deg)) / len(real_deg),
 
-        return pd.DataFrame(rows)
+                'real_mean_cc': sum(d[0] for d in real_cc) / len(real_cc),
+                'synth_mean_cc': sum(d[0] for d in synth_cc) / len(synth_cc),
+                'cc_diff': (sum(d[0] for d in real_cc) - sum(d[0] for d in synth_cc)) / len(real_cc),
+
+                'real_mean_cpl': sum(d[0] for d in real_cpl) / len(real_cpl),
+                'synth_mean_cpl': sum(d[0] for d in synth_cpl) / len(synth_cpl),
+                'cpl_diff': (sum(d[0] for d in real_cpl) - sum(d[0] for d in synth_cpl)) / len(real_cpl),
+
+                'real_diameter': sum(real_diams) / len(real_diams),
+                'synth_diameter': sum(synth_diams) / len(synth_diams),
+                'diam_diff': (sum(real_diams) - sum(synth_diams)) / len(real_diams),
+
+                'real_mean_bw': sum(d[0] for d in real_bw) / len(real_bw),
+                'synth_mean_bw': sum(d[0] for d in synth_bw) / len(synth_bw),
+                'bw_diff': (sum(d[0] for d in real_bw) - sum(d[0] for d in synth_bw)) / len(real_bw),
+
+                'real_deg_distrib': distributions[level]['real']['deg'],
+                'synth_deg_distrib': distributions[level]['synth']['deg'],
+                'real_cc_distrib': distributions[level]['real']['cc'],
+                'synth_cc_distrib': distributions[level]['synth']['cc'],
+                'real_cpl_distrib': distributions[level]['real']['cpl'],
+                'synth_cpl_distrib': distributions[level]['synth']['cpl'],
+                'real_bw_distrib': distributions[level]['real']['bw'],
+                'synth_bw_distrib': distributions[level]['synth']['bw']
+            }
+            rows.append(row)
+
+        # JSON speichern
+        with open("topological_distributions.json", "w") as f:
+            json.dump(distributions, f, indent=2)
+
+        df = pd.DataFrame(rows)
+        plot_topological_comparison(df)
+        return df
 
     def compare_system_metrics(self, networks: dict, label: str) -> list:
         return [compute_system_metrics(net) for net in networks.get('MV', []) + networks.get('LV', [])]

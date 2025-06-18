@@ -4,90 +4,126 @@ import pandas as pd
 
 def plot_topological_comparison(df):
     """
-    Erwartet ein DataFrame mit Spalten:
-      ['level', 'real_mean_deg', 'synth_mean_deg', 'deg_diff',
-       'real_mean_cc', 'synth_mean_cc', 'cc_diff',
-       'real_mean_cpl', 'synth_mean_cpl', 'cpl_diff',
-       'real_diameter', 'synth_diameter', 'diam_diff',
-       'real_mean_bw', 'synth_mean_bw', 'bw_diff']
-
-    Zeichnet separate Balkendiagramme für jede Metrik:
-      1) Mean Node Degree
-      2) Mean Clustering Coefficient
-      3) Mean Characteristic Path Length
-      4) Graph Diameter
-      5) Mean Betweenness Centrality
+    Zeigt zwei separate Visualisierungen:
+    1. Balkendiagramme der Mittelwerte
+    2. Boxplots der Verteilungen
+    Falls eine Metrik nur Nullen enthält, wird sie ausgelassen und unten aufgeführt.
     """
     levels = df['level'].values
     x = np.arange(len(levels))
     width = 0.35
+    skipped_metrics = []
 
-    fig, axs = plt.subplots(5, 1, figsize=(8, 20))
+    # --- 1. Mittelwerte als Balkendiagramme ---
+    metric_map = {
+        'deg': 'Mean Node Degree',
+        'cc': 'Clustering Coefficient',
+        'cpl': 'Path Length',
+        'diameter': 'Graph Diameter',
+        'bw': 'Betweenness Centrality'
+    }
 
-    # 1) Node Degree
-    axs[0].bar(x - width/2, df['real_mean_deg'], width, label='Real', color='blue')
-    axs[0].bar(x + width/2, df['synth_mean_deg'], width, label='Synthetic', color='orange')
-    axs[0].set_ylabel('Mean Node Degree')
-    axs[0].set_title('Comparison: Node Degree')
-    axs[0].set_xticks(x)
-    axs[0].set_xticklabels(levels)
-    axs[0].legend()
+    plot_keys = []
+    for key in metric_map:
+        real = df.get(f'real_mean_{key}', [])
+        synth = df.get(f'synth_mean_{key}', [])
+        if len(real) == 0 or (all(v == 0 for v in real) and all(v == 0 for v in synth)):
+            skipped_metrics.append(metric_map[key])
+            continue
+        plot_keys.append(key)
 
-    # 2) Clustering Coefficient
-    axs[1].bar(x - width/2, df['real_mean_cc'], width, label='Real', color='blue')
-    axs[1].bar(x + width/2, df['synth_mean_cc'], width, label='Synthetic', color='orange')
-    axs[1].set_ylabel('Mean Clustering Coeff.')
-    axs[1].set_title('Comparison: Clustering Coefficient')
-    axs[1].set_xticks(x)
-    axs[1].set_xticklabels(levels)
-    axs[1].legend()
+    fig1, axs1 = plt.subplots(1, len(plot_keys), figsize=(6 * len(plot_keys), 6))
+    if len(plot_keys) == 1:
+        axs1 = [axs1]
 
-    # 3) Characteristic Path Length
-    axs[2].bar(x - width/2, df['real_mean_cpl'], width, label='Real', color='blue')
-    axs[2].bar(x + width/2, df['synth_mean_cpl'], width, label='Synthetic', color='orange')
-    axs[2].set_ylabel('Mean Path Length')
-    axs[2].set_title('Comparison: Characteristic Path Length')
-    axs[2].set_xticks(x)
-    axs[2].set_xticklabels(levels)
-    axs[2].legend()
+    for ax, key in zip(axs1, plot_keys):
+        ax.bar(x - width/2, df[f'real_mean_{key}'], width, label='Real', color='blue')
+        ax.bar(x + width/2, df[f'synth_mean_{key}'], width, label='Synthetic', color='orange')
+        ax.set_title(metric_map[key])
+        ax.set_xticks(x)
+        ax.set_xticklabels(levels)
+        ax.legend()
 
-    # 4) Graph Diameter
-    axs[3].bar(x - width/2, df['real_diameter'], width, label='Real', color='blue')
-    axs[3].bar(x + width/2, df['synth_diameter'], width, label='Synthetic', color='orange')
-    axs[3].set_ylabel('Diameter')
-    axs[3].set_title('Comparison: Graph Diameter')
-    axs[3].set_xticks(x)
-    axs[3].set_xticklabels(levels)
-    axs[3].legend()
-
-    # 5) Betweenness Centrality
-    axs[4].bar(x - width/2, df['real_mean_bw'], width, label='Real', color='blue')
-    axs[4].bar(x + width/2, df['synth_mean_bw'], width, label='Synthetic', color='orange')
-    axs[4].set_ylabel('Mean Betweenness')
-    axs[4].set_title('Comparison: Betweenness Centrality')
-    axs[4].set_xticks(x)
-    axs[4].set_xticklabels(levels)
-    axs[4].legend()
-
-    plt.tight_layout()
+    fig1.suptitle('Topological Metrics - Mean Values')
+    plt.tight_layout(pad=3.0)
+    plt.subplots_adjust(top=0.85)
     plt.show()
-    
+
+    # --- 2. Boxplots der Verteilungen ---
+    fig2, axs2 = plt.subplots(1, len(plot_keys), figsize=(6 * len(plot_keys), 6))
+    if len(plot_keys) == 1:
+        axs2 = [axs2]
+
+    for ax, key in zip(axs2, plot_keys):
+        real_vals = df.iloc[0][f'real_{key}_distrib']
+        synth_vals = df.iloc[0][f'synth_{key}_distrib']
+        ax.boxplot([real_vals, synth_vals], labels=['Real', 'Synthetic'])
+        ax.set_title(f'{metric_map[key]} (Boxplot)')
+
+    fig2.suptitle('Topological Metrics - Distributions (Boxplots)')
+    plt.tight_layout(pad=3.0)
+    plt.subplots_adjust(top=0.85)
+    if skipped_metrics:
+        print("Folgende Topo-Metriken wurden ausgelassen (nur Nullwerte):")
+        for m in skipped_metrics:
+            print(f" - {m}")
+    plt.show()
+
 def plot_system_metrics(metrics_list: list[dict], labels: list[str]):
+    """
+    Zeigt zwei Darstellungen der Systemmetriken:
+    1. Balkendiagramme der Mittelwerte
+    2. Boxplots der Verteilungen
+    Wenn eine Metrik nur Nullen enthält, wird sie ausgelassen und unten aufgeführt.
+    """
     if not metrics_list:
         print("Keine Systemmetriken zur Anzeige verfügbar.")
         return
 
     df = pd.DataFrame(metrics_list)
     df['label'] = labels
+    numeric_cols = [col for col in df.columns if col != 'label' and pd.api.types.is_numeric_dtype(df[col])]
 
-    for col in df.columns:
-        if col == 'label':
-            continue
-        fig, ax = plt.subplots()
-        df.boxplot(column=col, by='label', ax=ax)
-        ax.set_title(f'Systemmetrik: {col}')
-        ax.set_xlabel('Datensatz')
-        ax.set_ylabel(col)
-        plt.suptitle('')
-        plt.tight_layout()
-        plt.show()
+    skipped_metrics = []
+
+    # --- 1. Mittelwerte ---
+    means = df.groupby('label')[numeric_cols].mean()
+    kept_cols = [col for col in means.columns if not all(df[col] == 0)]
+    skipped_metrics.extend([col for col in means.columns if all(df[col] == 0)])
+
+    fig1, axs1 = plt.subplots(nrows=(len(kept_cols) - 1) // 5 + 1, ncols=5, figsize=(5 * min(5, len(kept_cols)), 6))
+    axs1 = axs1.flatten() if isinstance(axs1, np.ndarray) else [axs1]
+
+    for i, col in enumerate(kept_cols):
+        axs1[i].bar(means.index, means[col], color=['blue', 'orange'])
+        axs1[i].set_title(col)
+        axs1[i].set_ylabel(col)
+        axs1[i].tick_params(axis='x', rotation=45)
+    for j in range(len(kept_cols), len(axs1)):
+        axs1[j].axis('off')
+
+    plt.tight_layout(pad=3.0)
+    plt.suptitle('Systemmetriken: Mittelwerte', fontsize=16)
+    plt.subplots_adjust(top=0.92)
+    plt.show()
+
+    # --- 2. Boxplots ---
+    fig2, axs2 = plt.subplots(nrows=(len(kept_cols) - 1) // 5 + 1, ncols=5, figsize=(5 * min(5, len(kept_cols)), 6))
+    axs2 = axs2.flatten() if isinstance(axs2, np.ndarray) else [axs2]
+
+    for i, col in enumerate(kept_cols):
+        df.boxplot(column=col, by='label', ax=axs2[i])
+        axs2[i].set_title(col)
+        axs2[i].set_xlabel('')
+        axs2[i].tick_params(axis='x', rotation=45)
+    for j in range(len(kept_cols), len(axs2)):
+        axs2[j].axis('off')
+
+    plt.tight_layout(pad=3.0)
+    plt.suptitle('Systemmetriken: Verteilungen (Boxplots)', fontsize=16)
+    plt.subplots_adjust(top=0.92)
+    if skipped_metrics:
+        print("Folgende Systemmetriken wurden ausgelassen (nur Nullwerte):")
+        for m in skipped_metrics:
+            print(f" - {m}")
+    plt.show()
