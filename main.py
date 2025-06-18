@@ -8,7 +8,7 @@ from real_vs_synth.viz.plt_comparison import plot_topological_comparison
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compare topological metrics between Real and Synthetic power networks"
+        description="Compare topological and system metrics between Real and Synthetic power networks"
     )
     parser.add_argument(
         '--real', required=True,
@@ -17,6 +17,10 @@ def main():
     parser.add_argument(
         '--synthetic', required=True,
         help="Pfad zu Synthetic-Netz-Daten (Verzeichnis mit JSON oder CSV)"
+    )
+    parser.add_argument(
+        '--export_json', action='store_true',
+        help="Speichert statistische Verteilungen und Mittelwerte als JSON-Datei im ./results Verzeichnis"
     )
     args = parser.parse_args()
 
@@ -61,13 +65,18 @@ def main():
     print("Zeige Balkendiagramm für alle Topo-Metriken …")
     plot_topological_comparison(df)
 
-    # --- Visualisiere systemische Metriken ---
     print("Zeige Balkendiagramm für System-Metriken …")
     comparer.plot_system_metrics(real_networks, synthetic_networks)
+
+    # --- Export JSON-Datei mit Mittelwerten und Verteilungen ---
+    if args.export_json:
+        print("Exportiere Verteilungen als JSON …")
+        comparer.export_statistics_to_json(real_networks, synthetic_networks, output_dir="results")
 
 if __name__ == '__main__':
     main()
 
 
-#python main.py --real "real_vs_synth/data/1-LV-rural1--1-no_sw/train"  --synthetic "real_vs_synth/data/1-LV-rural1--1-no_sw/train"
-#python main.py --real simbench  --synthetic "real_vs_synth/data/1-LV-rural1--1-no_sw/train"
+# Beispielaufrufe zur Nutzung des Skripts:
+# python main.py --real "real_vs_synth/data/1-LV-rural1--1-no_sw/train" --synthetic "real_vs_synth/data/1-LV-rural1--1-no_sw/train"
+# python main.py --real simbench --synthetic "real_vs_synth/data/1-LV-rural1--1-no_sw/train"
