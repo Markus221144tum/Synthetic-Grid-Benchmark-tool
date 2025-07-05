@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['model\\network.py', '..\\main.py', 'viz\\plt_comparison.py', 'analysis\\comparer.py', 'metrics\\topological_characteristics.py', 'metrics\\system_characteristics.py', 'data\\synthetic_loader.py', 'data\\loader.py', 'data\\cvs_loader.py', 'data\\simbench_loader.py']
+recent_files = ['..\\..\\syed-abbas\\utils.py', '..\\..\\syed-abbas\\train_model.py', '..\\..\\syed-abbas\\test_model.py', '..\\..\\syed-abbas\\prepare_data.py']
 
 [main]
 version = 0.2.0

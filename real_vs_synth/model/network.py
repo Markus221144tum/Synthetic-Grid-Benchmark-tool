@@ -22,6 +22,7 @@ class Network:
         # Erzeugt NetworkX-Graph, inklusive Leitungen und Transformatoren
         inst.graph = create_nxgraph(pp_net, include_lines=True, include_trafos=True)
         inst.pp_net = pp_net
+        inst._debug_topology()
         return inst
 
     @classmethod
@@ -60,6 +61,37 @@ class Network:
         """Berechnet die Betweenness-Centrality aller Knoten (wie oft liegt ein Knoten auf kürzesten Pfaden)."""
         simpleG = nx.Graph(self.graph)
         return nx.betweenness_centrality(simpleG)
+
+    # Debug Topologie (wie vorher)
+    def _debug_topology(self):
+        G = nx.Graph(self.graph)
+        print("--- Netz Topologie Debug ---")
+        print(f"Knoten: {G.number_of_nodes()} | Kanten: {G.number_of_edges()}")
+        comps = list(nx.connected_components(G))
+        print(f"Komponenten insgesamt: {len(comps)}")
+        for i, comp in enumerate(comps):
+            print(f"  Komponente {i+1}: {len(comp)} Knoten")
+        main_comp = max((G.subgraph(c).copy() for c in comps), key=lambda g: len(g.nodes))
+        print(f"Größe größte Komponente: {main_comp.number_of_nodes()} Knoten / {main_comp.number_of_edges()} Kanten")
+        num_triangles = sum(nx.triangles(main_comp).values()) // 3
+        print(f"Dreiecke in größter Komponente: {num_triangles}")
+
+        # Teste Clustering und Durchmesser mit Output
+        try:
+            clust = nx.average_clustering(main_comp)
+            print(f"Clustering Coefficient (größte Komponente): {clust}")
+            if clust == 0:
+                print("WARNUNG: Clustering = 0 trotz urbanem Netz. Prüfe Netzstruktur auf Radialität!")
+        except Exception as e:
+            print(f"Clustering-Berechnung nicht möglich: {e}")
+        try:
+            dia = nx.diameter(main_comp)
+            print(f"Durchmesser (größte Komponente): {dia}")
+            if dia == 0:
+                print("WARNUNG: Durchmesser = 0. Netz ist trivial oder nicht verbunden.")
+        except Exception as e:
+            print(f"Durchmesser nicht berechenbar: {e}")
+        print("--- Ende Debug ---\n")
 
     # Zugriffshilfen für Systemmetriken basierend auf pandapower-Objekten:
     @property
