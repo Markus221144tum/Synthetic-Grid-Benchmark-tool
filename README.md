@@ -1,6 +1,4 @@
-Hier ist der **überarbeitete und vollständige README-Fließtext auf Englisch**, im GitHub-kompatiblen Markdown-Format (`#`, `-`, `+`, etc.), mit korrigierter Grammatik, einheitlichem Stil und all deinen Punkten integriert:
 
----
 
 # Synthetic Grid Benchmark Tool
 
@@ -233,6 +231,3 @@ For feature requests, improvements, or bug reports, feel free to create an issue
 
 **Happy benchmarking!** ⚡
 
----
-
-Möchtest du diesen Text direkt als `README.md`-Datei speichern, kann ich ihn dir auf Wunsch generieren.
